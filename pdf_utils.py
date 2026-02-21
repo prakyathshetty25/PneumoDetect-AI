@@ -1,5 +1,8 @@
 from fpdf import FPDF
 from datetime import datetime
+import matplotlib.pyplot as plt
+import os
+import tempfile
 
 class ClinicalReportPDF(FPDF):
     def header(self):
@@ -31,10 +34,45 @@ def generate_pdf_report(image_path, heatmap_path, prediction, probability, outpu
     pdf.set_text_color(0, 0, 0) # Black
     
     pdf.set_font('Arial', '', 12)
-    pdf.cell(0, 10, f"Confidence Score (Probability of Pneumonia): {probability:.2%}", 0, 1)
+    # Give detailed breakdown
+    pneum_prob = probability if prediction == "Pneumonia Detected" else (1 - probability)
+    normal_prob = 1 - pneum_prob
     
-    pdf.ln(10)
+    pdf.cell(0, 8, f"Probability of Pneumonia: {pneum_prob:.2%}", 0, 1)
+    pdf.cell(0, 8, f"Probability of Normal (Healthy): {normal_prob:.2%}", 0, 1)
     
+    pdf.ln(5)
+    
+    # Generate a temporary Matplotlib Bar Chart
+    with tempfile.TemporaryDirectory() as temp_dir:
+        chart_path = os.path.join(temp_dir, 'confidence_chart.png')
+        
+        plt.figure(figsize=(6, 2))
+        categories = ['Normal', 'Pneumonia']
+        probs = [normal_prob * 100, pneum_prob * 100]
+        colors = ['#28a745' if normal_prob > pneum_prob else '#6c757d', 
+                  '#dc3545' if pneum_prob > normal_prob else '#6c757d']
+        
+        bars = plt.barh(categories, probs, color=colors)
+        plt.xlim(0, 100)
+        plt.xlabel('Confidence Percentage (%)')
+        plt.title('AI Decision Breakdown')
+        
+        # Add text labels on bars
+        for bar in bars:
+            width = bar.get_width()
+            plt.text(width + 1, bar.get_y() + bar.get_height()/2., 
+                     f'{width:.1f}%', ha='left', va='center')
+            
+        plt.tight_layout()
+        plt.savefig(chart_path, dpi=150)
+        plt.close()
+
+        # Insert Chart Image
+        curr_y = pdf.get_y()
+        pdf.image(chart_path, x=10, y=curr_y, w=120)
+        pdf.ln(55) # Move past chart
+
     # Images Section
     pdf.set_font('Arial', 'B', 14)
     pdf.cell(0, 10, 'Visual Evidence Analysis', 0, 1)
@@ -55,7 +93,7 @@ def generate_pdf_report(image_path, heatmap_path, prediction, probability, outpu
     # Move to bottom to add notes
     pdf.set_y(curr_y + 90)
     pdf.set_font('Arial', 'I', 10)
-    pdf.multi_cell(0, 10, "Note: This is an AI-generated analysis based on a MobileNetV2 architecture placeholder. The Grad-CAM heatmap highlights the region most indicative of the prediction. This report must be reviewed by a qualified radiologist or physician.")
+    pdf.multi_cell(0, 5, "Note: This is an AI-generated analysis based on a fine-tuned MobileNetV2 architecture. The Grad-CAM heatmap highlights the region most indicative of the prediction. The confidence chart indicates the exact probability distribution between the 'Normal' and 'Pneumonia' classifications across the analyzed X-ray features.\n\nDisclaimer: This report must be reviewed by a qualified radiologist or physician.")
     
     pdf.output(output_path)
     return output_path
