@@ -19,13 +19,12 @@ Computer Vision: OpenCV, PIL
 
 Explainability: Grad-CAM (Gradient-weighted Class Activation Mapping)
 
-Local LLM: Ollama (Llama 3.2)
 
 📦 Installation & Setup
 1. Clone the Repository
 Bash
-git clone https://github.com/your-username/pneumodetect-ai.git
-cd pneumodetect-ai
+git clone https://github.com/prakyathshetty25/PneumoDetect-AI
+cd PneumoDetect-AI
 2. Set Up Virtual Environment
 Bash
 python3 -m venv venv
